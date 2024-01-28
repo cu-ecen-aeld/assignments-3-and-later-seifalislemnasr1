@@ -1,3 +1,7 @@
+// examples/systemcalls/systemcalls.c
+
+#ifndef UNIT_TEST
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdarg.h>
@@ -127,8 +131,4 @@ int do_exec_redirect(const char *outputfile, int count, ...)
     return 1;
 }
 
-int main()
-{
-    // You can add test cases or use the functions in your program here
-    return 0;
-}
+#endif
