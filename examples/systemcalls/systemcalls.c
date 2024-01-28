@@ -64,10 +64,10 @@ bool do_exec(int count, ...)
     }
     else if (son_pid == 0)
     {
-        const char **sous = malloc((count + 1) * sizeof(const char *));
+        char *sous[count + 1];
         for (int i = 0; i < count; i++)
         {
-            sous[i] = command[i + 1];
+            sous[i] = (char *)command[i + 1];
         }
         sous[count] = NULL;
 
@@ -130,10 +130,10 @@ bool do_exec_redirect(const char *outputfile, int count, ...)
         }
         close(fd);
 
-        const char **sous = malloc((count + 1) * sizeof(const char *));
+        char *sous[count + 1];
         for (int i = 0; i < count; i++)
         {
-            sous[i] = command[i + 1];
+            sous[i] = (char *)command[i + 1];
         }
         sous[count] = NULL;
 
@@ -157,6 +157,7 @@ bool do_exec_redirect(const char *outputfile, int count, ...)
     va_end(args);
     return true;
 }
+
 
 int main()
 {
