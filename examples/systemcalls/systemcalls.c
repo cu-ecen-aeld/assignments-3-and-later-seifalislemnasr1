@@ -1,4 +1,9 @@
+#include <stdlib.h>
 #include "systemcalls.h"
+#include <unistd.h>
+#include <fcntl.h>
+#include <unistd.h>
+
 
 /**
  * @param cmd the command to execute with system()
@@ -79,7 +84,7 @@ bool do_exec(int count, ...)
              sous[i] = command[i + 1];
              }
         sous[count] = NULL;
-        stat_ex = execv(command[0],sous);
+        stat_ex = execv(command[0], sous);
     	if (stat_ex == -1){
     	     perror("Execv failed");
     	     return false;
@@ -138,7 +143,7 @@ bool do_exec_redirect(const char *outputfile, int count, ...)
     	     		perror("Execvp failed");
     	     		return false;
     	     	}
-        case default:
+        default:
         	close(fd);
         	
 }
