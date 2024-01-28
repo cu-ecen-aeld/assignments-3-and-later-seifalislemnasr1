@@ -9,7 +9,16 @@
 */
 bool do_system(const char *cmd)
 {
-
+	int stat = system(cmd);
+	if (stat == -1){
+	    perror("Error occured");
+	    return false;
+	    }
+	else {
+	    printf("Command executed with exit status %d",stat);
+	    return true;
+	    }
+	return true; 
 /*
  * TODO  add your code here
  *  Call the system() function with the command set in the cmd
@@ -17,7 +26,7 @@ bool do_system(const char *cmd)
  *   or false() if it returned a failure
 */
 
-    return true;
+ 
 }
 
 /**
@@ -58,12 +67,33 @@ bool do_exec(int count, ...)
  *   as second argument to the execv() command.
  *
 */
-
-    va_end(args);
-
-    return true;
+    pid_t son_pid;
+    son_pid = fork();
+    if (son_pid == -1){
+        perror("Error while forking");
+        return false;
+        }
+    else if (son_pid == 0){
+        const char **sous = malloc((count + 1) * sizeof(char*));
+        for (int i = 0; i < count; i++) {
+             sous[i] = command[i + 1];
+             }
+        sous[count] = NULL;
+        stat_ex = execv(command[0],sous);
+    	if (stat_ex == -1){
+    	     perror("Execv failed");
+    	     return false;
+    	     }
+        int status;
+        if ( waitpid(son_pid,&status,0) == -1){
+             perror("Wait failed");
+             return false;
+               
 }
-
+}
+     va_end(args);
+     return true;  
+}
 /**
 * @param outputfile - The full path to the file to write with command output.
 *   This file will be closed at completion of the function call.
@@ -83,7 +113,43 @@ bool do_exec_redirect(const char *outputfile, int count, ...)
     // this line is to avoid a compile warning before your implementation is complete
     // and may be removed
     command[count] = command[count];
-
+    int fd = open("redirected.txt", O_WRONLY|O_TRUNC|O_CREAT, 0644);
+    int sonpid;
+    if (fd<0){
+    	perror("Failed opening specified file");
+    	return false;
+    	}
+    switch (sonpid == fork()){
+    	case -1: perror ("Error Forking");return false;
+    	case 0:
+    		if (dup2(fd,1) < 0){
+    			perror("Dup2");
+    			return false;
+    			}
+    		close(fd);
+    		const char **sous = malloc((count + 1) * sizeof(char*));
+        	for (int i = 0; i < count; i++) {
+             		sous[i] = command[i + 1];
+             	}
+        	sous[count] = NULL;
+    		
+    		stat_ex1 = execvp(command[0],sous);
+    		if (stat_ex1 == -1){
+    	     		perror("Execvp failed");
+    	     		return false;
+    	     	}
+        case default:
+        	close(fd);
+        	
+}
+  int status;
+  if ( waitpid(son_pid,&status,0) == -1){
+       perror("Wait failed");
+       return false;
+               
+}
+		
+    	
 
 /*
  * TODO
