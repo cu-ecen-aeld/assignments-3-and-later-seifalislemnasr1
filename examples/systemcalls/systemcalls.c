@@ -1,9 +1,12 @@
+#include <stdio.h>
 #include <stdlib.h>
-#include "systemcalls.h"
 #include <unistd.h>
 #include <fcntl.h>
-#include <unistd.h>
+#include <stdarg.h>
+#include <sys/types.h>
+#include <sys/wait.h>
 
+#include "systemcalls.h"  // Assuming you have a header file with declarations for your functions
 
 /**
  * @param cmd the command to execute with system()
@@ -11,160 +14,156 @@
  *   successfully using the system() call, false if an error occurred,
  *   either in invocation of the system() call, or if a non-zero return
  *   value was returned by the command issued in @param cmd.
-*/
+ */
 bool do_system(const char *cmd)
 {
-	int stat = system(cmd);
-	if (stat == -1){
-	    perror("Error occured");
-	    return false;
-	    }
-	else {
-	    printf("Command executed with exit status %d",stat);
-	    return true;
-	    }
-	return true; 
-/*
- * TODO  add your code here
- *  Call the system() function with the command set in the cmd
- *   and return a boolean true if the system() call completed with success
- *   or false() if it returned a failure
-*/
-
- 
+    int stat = system(cmd);
+    if (stat == -1)
+    {
+        perror("Error occurred");
+        return false;
+    }
+    else
+    {
+        printf("Command executed with exit status %d\n", stat);
+        return true;
+    }
 }
 
 /**
-* @param count -The numbers of variables passed to the function. The variables are command to execute.
-*   followed by arguments to pass to the command
-*   Since exec() does not perform path expansion, the command to execute needs
-*   to be an absolute path.
-* @param ... - A list of 1 or more arguments after the @param count argument.
-*   The first is always the full path to the command to execute with execv()
-*   The remaining arguments are a list of arguments to pass to the command in execv()
-* @return true if the command @param ... with arguments @param arguments were executed successfully
-*   using the execv() call, false if an error occurred, either in invocation of the
-*   fork, waitpid, or execv() command, or if a non-zero return value was returned
-*   by the command issued in @param arguments with the specified arguments.
-*/
-
+ * @param count -The numbers of variables passed to the function. The variables are command to execute.
+ *   followed by arguments to pass to the command
+ *   Since exec() does not perform path expansion, the command to execute needs
+ *   to be an absolute path.
+ * @param ... - A list of 1 or more arguments after the @param count argument.
+ *   The first is always the full path to the command to execute with execv()
+ *   The remaining arguments are a list of arguments to pass to the command in execv()
+ * @return true if the command @param ... with arguments @param arguments were executed successfully
+ *   using the execv() call, false if an error occurred, either in invocation of the
+ *   fork, waitpid, or execv() command, or if a non-zero return value was returned
+ *   by the command issued in @param arguments with the specified arguments.
+ */
 bool do_exec(int count, ...)
 {
     va_list args;
     va_start(args, count);
-    char * command[count+1];
+    const char *command[count + 1];
     int i;
-    for(i=0; i<count; i++)
+    for (i = 0; i < count; i++)
     {
-        command[i] = va_arg(args, char *);
+        command[i] = va_arg(args, const char *);
     }
     command[count] = NULL;
-    // this line is to avoid a compile warning before your implementation is complete
-    // and may be removed
-    command[count] = command[count];
 
-/*
- * TODO:
- *   Execute a system command by calling fork, execv(),
- *   and wait instead of system (see LSP page 161).
- *   Use the command[0] as the full path to the command to execute
- *   (first argument to execv), and use the remaining arguments
- *   as second argument to the execv() command.
- *
-*/
     pid_t son_pid;
     son_pid = fork();
-    if (son_pid == -1){
+    if (son_pid == -1)
+    {
         perror("Error while forking");
         return false;
+    }
+    else if (son_pid == 0)
+    {
+        const char **sous = malloc((count + 1) * sizeof(const char *));
+        for (int i = 0; i < count; i++)
+        {
+            sous[i] = command[i + 1];
         }
-    else if (son_pid == 0){
-        const char **sous = malloc((count + 1) * sizeof(char*));
-        for (int i = 0; i < count; i++) {
-             sous[i] = command[i + 1];
-             }
         sous[count] = NULL;
-        stat_ex = execv(command[0], sous);
-    	if (stat_ex == -1){
-    	     perror("Execv failed");
-    	     return false;
-    	     }
+
+        int stat_ex = execv(command[0], sous);
+        if (stat_ex == -1)
+        {
+            perror("Execv failed");
+            exit(EXIT_FAILURE);
+        }
+    }
+    else
+    {
         int status;
-        if ( waitpid(son_pid,&status,0) == -1){
-             perror("Wait failed");
-             return false;
-               
+        if (waitpid(son_pid, &status, 0) == -1)
+        {
+            perror("Wait failed");
+            return false;
+        }
+    }
+
+    va_end(args);
+    return true;
 }
-}
-     va_end(args);
-     return true;  
-}
+
 /**
-* @param outputfile - The full path to the file to write with command output.
-*   This file will be closed at completion of the function call.
-* All other parameters, see do_exec above
-*/
+ * @param outputfile - The full path to the file to write with command output.
+ *   This file will be closed at completion of the function call.
+ * All other parameters, see do_exec above
+ */
 bool do_exec_redirect(const char *outputfile, int count, ...)
 {
     va_list args;
     va_start(args, count);
-    char * command[count+1];
+    const char *command[count + 1];
     int i;
-    for(i=0; i<count; i++)
+    for (i = 0; i < count; i++)
     {
-        command[i] = va_arg(args, char *);
+        command[i] = va_arg(args, const char *);
     }
     command[count] = NULL;
-    // this line is to avoid a compile warning before your implementation is complete
-    // and may be removed
-    command[count] = command[count];
-    int fd = open("redirected.txt", O_WRONLY|O_TRUNC|O_CREAT, 0644);
-    int sonpid;
-    if (fd<0){
-    	perror("Failed opening specified file");
-    	return false;
-    	}
-    switch (sonpid == fork()){
-    	case -1: perror ("Error Forking");return false;
-    	case 0:
-    		if (dup2(fd,1) < 0){
-    			perror("Dup2");
-    			return false;
-    			}
-    		close(fd);
-    		const char **sous = malloc((count + 1) * sizeof(char*));
-        	for (int i = 0; i < count; i++) {
-             		sous[i] = command[i + 1];
-             	}
-        	sous[count] = NULL;
-    		
-    		stat_ex1 = execvp(command[0],sous);
-    		if (stat_ex1 == -1){
-    	     		perror("Execvp failed");
-    	     		return false;
-    	     	}
-        default:
-        	close(fd);
-        	
-}
-  int status;
-  if ( waitpid(son_pid,&status,0) == -1){
-       perror("Wait failed");
-       return false;
-               
-}
-		
-    	
 
-/*
- * TODO
- *   Call execv, but first using https://stackoverflow.com/a/13784315/1446624 as a refernce,
- *   redirect standard out to a file specified by outputfile.
- *   The rest of the behaviour is same as do_exec()
- *
-*/
+    int fd = open(outputfile, O_WRONLY | O_TRUNC | O_CREAT, 0644);
+    if (fd < 0)
+    {
+        perror("Failed opening specified file");
+        return false;
+    }
+
+    pid_t sonpid;
+    switch (sonpid = fork())
+    {
+    case -1:
+        perror("Error Forking");
+        return false;
+    case 0:
+        if (dup2(fd, 1) < 0)
+        {
+            perror("Dup2");
+            exit(EXIT_FAILURE);
+        }
+        close(fd);
+
+        const char **sous = malloc((count + 1) * sizeof(const char *));
+        for (int i = 0; i < count; i++)
+        {
+            sous[i] = command[i + 1];
+        }
+        sous[count] = NULL;
+
+        int stat_ex1 = execvp(command[0], sous);
+        if (stat_ex1 == -1)
+        {
+            perror("Execvp failed");
+            exit(EXIT_FAILURE);
+        }
+
+    default:
+        close(fd);
+        int status;
+        if (waitpid(sonpid, &status, 0) == -1)
+        {
+            perror("Wait failed");
+            return false;
+        }
+    }
 
     va_end(args);
-
     return true;
+}
+
+int main()
+{
+    // Example usage:
+    do_system("ls -l");
+    do_exec(3, "/bin/echo", "Hello", "World");
+    do_exec_redirect("output.txt", 3, "/bin/echo", "Redirected", "Output");
+
+    return 0;
 }
