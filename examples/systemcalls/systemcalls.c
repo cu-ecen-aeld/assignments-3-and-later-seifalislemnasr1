@@ -1,9 +1,11 @@
-#include <stdlib.h>
 #include "systemcalls.h"
-#include <unistd.h>
+#include <errno.h>
 #include <fcntl.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sys/wait.h>
 #include <unistd.h>
-
 
 /**
  * @param cmd the command to execute with system()
@@ -14,24 +16,9 @@
 */
 bool do_system(const char *cmd)
 {
-	int stat = system(cmd);
-	if (stat == -1){
-	    perror("Error occured");
-	    return false;
-	    }
-	else {
-	    printf("Command executed with exit status %d",stat);
-	    return true;
-	    }
-	return true; 
-/*
- * TODO  add your code here
- *  Call the system() function with the command set in the cmd
- *   and return a boolean true if the system() call completed with success
- *   or false() if it returned a failure
-*/
-
- 
+    int res = system(cmd);
+    bool succes = res != -1;
+    return succes;
 }
 
 /**
@@ -57,11 +44,18 @@ bool do_exec(int count, ...)
     for(i=0; i<count; i++)
     {
         command[i] = va_arg(args, char *);
+        printf("command[%i]: %s\n", i, command[i]);
     }
     command[count] = NULL;
     // this line is to avoid a compile warning before your implementation is complete
     // and may be removed
     command[count] = command[count];
+
+    if (count < 1) {
+        // gaurd against invalid arguments;
+        errno = EINVAL;
+        return false;
+    }
 
 /*
  * TODO:
@@ -72,33 +66,38 @@ bool do_exec(int count, ...)
  *   as second argument to the execv() command.
  *
 */
-    pid_t son_pid;
-    son_pid = fork();
-    if (son_pid == -1){
-        perror("Error while forking");
+
+    // refrence https://stackoverflow.com/questions/19099663/how-to-correctly-use-fork-exec-wait
+    
+    int pid = fork();
+    if (pid == -1) {
+        perror("fork");
         return false;
+    }
+
+    // child
+    if (pid == 0) {
+        execv(command[0], &command[0]);
+        perror("exec");
+        exit(errno);
+    } else {
+        int exit_status;
+        pid = waitpid(pid, &exit_status, 0);
+        if (pid == -1){
+            perror("wait");
+            return false;
         }
-    else if (son_pid == 0){
-        const char **sous = malloc((count + 1) * sizeof(char*));
-        for (int i = 0; i < count; i++) {
-             sous[i] = command[i + 1];
-             }
-        sous[count] = NULL;
-        int stat_ex = execv(command[0], sous);
-    	if (stat_ex == -1){
-    	     perror("Execv failed");
-    	     return false;
-    	     }
-        int status;
-        if ( waitpid(son_pid,&status,0) == -1){
-             perror("Wait failed");
-             return false;
-               
+        if (exit_status) {
+            printf("child failed\n");
+            return false;
+        }
+    }
+
+    va_end(args);
+
+    return true;
 }
-}
-     va_end(args);
-     return true;  
-}
+
 /**
 * @param outputfile - The full path to the file to write with command output.
 *   This file will be closed at completion of the function call.
@@ -118,43 +117,7 @@ bool do_exec_redirect(const char *outputfile, int count, ...)
     // this line is to avoid a compile warning before your implementation is complete
     // and may be removed
     command[count] = command[count];
-    int fd = open("redirected.txt", O_WRONLY|O_TRUNC|O_CREAT, 0644);
-    int sonpid;
-    if (fd<0){
-    	perror("Failed opening specified file");
-    	return false;
-    	}
-    switch (sonpid == fork()) {
-    	case -1: perror ("Error Forking");return false;
-    	case 0:
-    		if (dup2(fd,1) < 0){
-    			perror("Dup2");
-    			return false;
-    			}
-    		close(fd);
-    		const char **sous = malloc((count + 1) * sizeof(char*));
-        	for (int i = 0; i < count; i++) {
-             		sous[i] = command[i + 1];
-             	}
-        	sous[count] = NULL;
-    		
-    		int stat_ex1 = execvp(command[0],sous);
-    		if (stat_ex1 == -1){
-    	     		perror("Execvp failed");
-    	     		return false;
-    	     	}
-        default:
-        	close(fd);
-        	
-}
-  int status;
-  if ( waitpid(son_pid,&status,0) == -1){
-       perror("Wait failed");
-       return false;
-               
-}
-		
-    	
+
 
 /*
  * TODO
@@ -163,6 +126,40 @@ bool do_exec_redirect(const char *outputfile, int count, ...)
  *   The rest of the behaviour is same as do_exec()
  *
 */
+    int pid = fork();
+    if (pid == -1) {
+        perror("fork");
+        return false;
+    }
+
+    // child
+    if (pid == 0) {
+        int fd = open(outputfile, O_WRONLY|O_TRUNC|O_CREAT, 0644);
+        if (fd == -1){
+            perror("open");
+            exit(1);
+        }
+        int fd2 =dup2(fd, 1);
+        if (fd2 == -1){
+            perror("dup2");
+            exit(1);
+        }
+        execv(command[0], &command[0]);
+        perror("exec");
+        exit(1);
+    } else {
+        int exit_status;
+        pid = waitpid(pid, &exit_status, 0);
+        if (pid == -1){
+            perror("wait");
+            return false;
+        }
+        if (exit_status) {
+            printf("child failed\n");
+            return false;
+        }
+    }
+
 
     va_end(args);
 
