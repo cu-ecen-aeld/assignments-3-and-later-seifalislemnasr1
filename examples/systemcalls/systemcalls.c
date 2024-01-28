@@ -6,23 +6,23 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 
-bool do_system(const char *cmd)
+int do_system(const char *cmd)
 {
     int stat = system(cmd);
     if (stat == -1)
     {
         perror("Error occurred");
-        return false;
+        return 0;
     }
     else
     {
         printf("Command executed with exit status %d", stat);
-        return true;
+        return 1;
     }
-    return true;
+    return 1;
 }
 
-bool do_exec(int count, ...)
+int do_exec(int count, ...)
 {
     va_list args;
     va_start(args, count);
@@ -39,7 +39,7 @@ bool do_exec(int count, ...)
     if (son_pid == -1)
     {
         perror("Error while forking");
-        return false;
+        return 0;
     }
     else if (son_pid == 0)
     {
@@ -55,15 +55,15 @@ bool do_exec(int count, ...)
         if (waitpid(son_pid, &status, 0) == -1)
         {
             perror("Wait failed");
-            return false;
+            return 0;
         }
     }
 
     va_end(args);
-    return true;
+    return 1;
 }
 
-bool do_exec_redirect(const char *outputfile, int count, ...)
+int do_exec_redirect(const char *outputfile, int count, ...)
 {
     va_list args;
     va_start(args, count);
@@ -79,7 +79,7 @@ bool do_exec_redirect(const char *outputfile, int count, ...)
     if (fd < 0)
     {
         perror("Failed opening specified file");
-        return false;
+        return 0;
     }
 
     pid_t sonpid;
@@ -88,7 +88,7 @@ bool do_exec_redirect(const char *outputfile, int count, ...)
     {
     case -1:
         perror("Error Forking");
-        return false;
+        return 0;
     case 0:
     {
         char *sous[count + 1];
@@ -118,13 +118,13 @@ bool do_exec_redirect(const char *outputfile, int count, ...)
         if (waitpid(sonpid, &status, 0) == -1)
         {
             perror("Wait failed");
-            return false;
+            return 0;
         }
     }
     }
 
     va_end(args);
-    return true;
+    return 1;
 }
 
 int main()
